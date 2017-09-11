@@ -1,4 +1,4 @@
-# via_covergen
+# via Facebook cover generator
 
 Generates a Facebook cover image with the activities for the current month.
 
