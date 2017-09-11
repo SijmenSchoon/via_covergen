@@ -3,6 +3,7 @@ from pytz import timezone
 from io import BytesIO
 from PIL import Image, ImageFont, ImageDraw
 from icalendar import cal
+import errno
 import requests
 import os
 import sys
@@ -104,8 +105,18 @@ def generate_cover_img():
         return output.getvalue()
 
 
+def create_folder(path):
+    try:
+        os.makedirs(path)
+    except OSError as exception:
+        if exception.errno != errno.EEXIST:
+            raise
+
+
 def main():
     cover = generate_cover_img()
+
+    create_folder('output')
 
     filename = datetime.now().strftime('via_fbcover_%y%M%d%H%M%S.jpg')
     path = os.path.join('output', filename)
