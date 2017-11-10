@@ -57,7 +57,7 @@ def generate_cover_img():
 
     print('generating image...', file=sys.stderr)
 
-    img = Image.open('resources/cover_template.png')
+    img = Image.open('resources/cover_template.png').convert('RGB')
     draw = ImageDraw.Draw(img)
     font = ImageFont.truetype('resources/via-consistent-font.otf', 20)
 
