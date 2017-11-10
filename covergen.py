@@ -63,7 +63,7 @@ def generate_cover_img():
 
     # Draw the title
     month = MONTHS[now.month - 1]
-    title = f'Activiteitenagenda {month} {now.year}'
+    title = 'Activiteitenagenda {} {}'.format(month, now.year)
     title_w, title_h = font.getsize(title)
     title_x, title_y = (img.width - title_w) // 2, 110
     draw.text((title_x, title_y), title, (255, 255, 255), font=font)
