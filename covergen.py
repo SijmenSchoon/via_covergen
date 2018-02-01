@@ -52,7 +52,7 @@ def build_events(month):
     return events
 
 
-FONT_SIZE = 17
+FONT_SIZE = 18
 
 EVENT_X_DATE_ICON = 100
 EVENT_X_DATE_TEXT = 122
@@ -86,9 +86,9 @@ def generate_cover_img():
             continue
 
         if len(events) > 9 and i == 8:
-            text = 'Hierna nog {} activiteiten in deze maand'.format(len(events) - i)
+            text = '+{} activiteiten in deze maand'.format(len(events) - i)
             w, _ = draw.textsize(text)
-            draw.text(((800 - w) / 2 + 50, current_y + 5), text, (255, 255, 255), font=font_bold)
+            draw.text(((860 - w) / 2 + 50, current_y + 5), text, (255, 255, 255), font=font_bold)
             break
 
         is_date = type(event['dtstart']) is date or type(event['dtend']) is date
