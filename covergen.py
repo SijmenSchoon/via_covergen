@@ -1,13 +1,16 @@
+#!/usr/bin/env python3
 from datetime import datetime, date, time, timedelta
 from pytz import timezone
 from io import BytesIO
 from PIL import Image, ImageFont, ImageDraw
 from icalendar import cal
+import locale
 import errno
 import requests
 import os
 import sys
 
+locale.setlocale(locale.LC_ALL, 'nl_NL.UTF-8')
 MONTHS = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli',
           'augustus', 'september', 'oktober', 'november', 'december']
 
@@ -15,13 +18,11 @@ MONTHS = ['januari', 'februari', 'maart', 'april', 'mei', 'juni', 'juli',
 def build_events(month):
     now = datetime.now()
 
-    print('importing calendar...', file=sys.stderr)
     ical = requests.get('https://calendar.google.com/calendar/ical/'
                         'via.uvastudent.org_rdn1ffk47v0gmla0oni69egmhk%40'
                         'group.calendar.google.com/public/basic.ics').text
     calendar = cal.Calendar().from_ical(ical)
 
-    print('processing events...', file=sys.stderr)
     events = []
     for event in calendar.walk('VEVENT'):
         ev = {
@@ -43,64 +44,80 @@ def build_events(month):
            ev['title'].lower() == 'tentamenweek':
             continue
 
-        if (ev['dtstart'].month >= month or ev['dtend'].month >= month) and \
-           (datestart >= now or dateend >= now):
+        if (ev['dtstart'].month >= month or ev['dtend'].month >= month) and (datestart >= now or dateend >= now) and \
+           ev['dtstart'].month < month % 12 + 1:
             events.append(ev)
 
     events.sort(key=lambda x: x['dtstart'].timetuple())
     return events
 
 
+FONT_SIZE = 17
+
+EVENT_X_DATE_ICON = 100
+EVENT_X_DATE_TEXT = 122
+EVENT_X_NAME      = 275
+EVENT_X_TIME_ICON = 812
+EVENT_X_TIME_TEXT = 835
+
+EVENT_HEIGHT = 27
+
 def generate_cover_img():
     now = datetime.now()
-    events = build_events(now.month)[:9]
+
+    print('importing calendar...', file=sys.stderr)
+    events = build_events(now.month)
+
+    print('\n'.join('{}: {}'.format(e['dtstart'], e['title']) for e in events), file=sys.stderr)
 
     print('generating image...', file=sys.stderr)
 
     img = Image.open('resources/cover_template.png').convert('RGB')
     draw = ImageDraw.Draw(img)
-    font = ImageFont.truetype('resources/via-consistent-font.otf', 20)
+
+    font_awesome = ImageFont.truetype('resources/font-awesome.otf',          FONT_SIZE)
+    font_regular = ImageFont.truetype('resources/SourceSansPro-Regular.ttf', FONT_SIZE)
+    font_bold    = ImageFont.truetype('resources/SourceSansPro-Bold.ttf',    FONT_SIZE)
 
     # Draw the title
-    month = MONTHS[now.month - 1]
-    title = 'Activiteitenagenda {} {}'.format(month, now.year)
-    title_w, title_h = font.getsize(title)
-    title_x, title_y = (img.width - title_w) // 2, 110
-    draw.text((title_x, title_y), title, (255, 255, 255), font=font)
-
-    current_y = title_y + title_h + 6
-    for event in events:
+    current_y = 185
+    for i, event in enumerate(events):
         if event['dtstart'].month != now.month:
             continue
 
-        is_date = type(event['dtstart']) is date \
-            or type(event['dtend']) is date
+        if len(events) > 9 and i == 8:
+            text = 'Hierna nog {} activiteiten in deze maand'.format(len(events) - i)
+            w, _ = draw.textsize(text)
+            draw.text(((800 - w) / 2 + 50, current_y + 5), text, (255, 255, 255), font=font_bold)
+            break
 
+        is_date = type(event['dtstart']) is date or type(event['dtend']) is date
         if is_date:
             event['dtend'] -= timedelta(days=1)
 
-        if event['dtstart'].day == event['dtend'].day \
-           or (not is_date and event['dtend'].hour < 6):
-            draw.text((10, current_y), event['dtstart'].strftime('%d'),
-                      (255, 255, 255), font=font)
-            if not is_date:
-                draw.text((70, current_y), event['dtstart'].strftime('%H:%M'),
-                          (255, 255, 255), font=font)
+        # Draw the date
+        draw.text((EVENT_X_DATE_ICON, current_y), '\uf274', (255, 255, 255), font=font_awesome)
+        if event['dtstart'].day == event['dtend'].day:
+            date_string = event['dtstart'].strftime('%-d %B')
         else:
-            draw.text((10, current_y), event['dtstart'].strftime('%d') +
-                      ' t/m ' + event['dtend'].strftime('%d'), font=font)
+            date_string = '{} \u2013 {} {}'.format(event['dtstart'].strftime('%-d'), event['dtend'].strftime('%-d'),
+                                                   event['dtstart'].strftime('%B'))
+        draw.text((EVENT_X_DATE_TEXT, current_y - 3), date_string, font=font_bold)
 
-        draw.text((160, current_y), event['title'], (255, 255, 255), font=font)
-        current_y += title_h
+        # Draw the event name
+        draw.text((EVENT_X_NAME, current_y - 3), event['title'], (255, 255, 255), font=font_regular)
 
-    more = 'meer informatie op svia.nl'
-    more_w, more_h = font.getsize(more)
-    more_x, more_y = img.width - title_w, img.height - title_h - 110
-    draw.text((more_x, more_y), more, (255, 255, 255), font=font)
+        # Draw the time, if available
+        if event['dtstart'].day == event['dtend'].day and not is_date:
+            draw.text((EVENT_X_TIME_ICON, current_y), '\uf017', (255, 255, 255), font=font_awesome)
+            draw.text((EVENT_X_TIME_TEXT, current_y - 3), event['dtstart'].strftime('%H:%M'),
+                      (255, 255, 255), font=font_bold)
+
+        current_y += EVENT_HEIGHT
 
     print('writing image...', file=sys.stderr)
     with BytesIO() as output:
-        img.save(output, format='JPEG', quality=95, optimize=True,
+        img.save(output, format='JPEG', quality=99, optimize=True,
                  subsampling='4:4:4')
         return output.getvalue()
 
@@ -118,7 +135,7 @@ def main():
 
     create_folder('output')
 
-    filename = datetime.now().strftime('via_fbcover_%y%M%d%H%M%S.jpg')
+    filename = datetime.now().strftime('via_fbcover_%y%m%d%H%M%S.jpg')
     path = os.path.join('output', filename)
     with open(path, 'wb') as image_file:
         image_file.write(cover)
