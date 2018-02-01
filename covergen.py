@@ -86,7 +86,7 @@ def generate_cover_img():
             continue
 
         if len(events) > 9 and i == 8:
-            text = '+{} activiteiten in deze maand'.format(len(events) - i)
+            text = '+{} activiteiten deze maand'.format(len(events) - i)
             w, _ = draw.textsize(text)
             draw.text(((860 - w) / 2 + 50, current_y + 5), text, (255, 255, 255), font=font_bold)
             break
