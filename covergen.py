@@ -45,7 +45,7 @@ def build_events(month):
             continue
 
         if (ev['dtstart'].month >= month or ev['dtend'].month >= month) and (datestart >= now or dateend >= now) and \
-           ev['dtstart'].month < month % 12 + 1:
+           ev['dtstart'].month < month + 1:
             events.append(ev)
 
     events.sort(key=lambda x: x['dtstart'].timetuple())
